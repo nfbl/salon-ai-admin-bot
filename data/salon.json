@@ -1,0 +1,34 @@
+{
+  "name": "Лаванда",
+  "address": "г. Москва, ул. Примерная, 10",
+  "phone": "+7 (900) 000-00-00",
+  "hours": {"open": "10:00", "close": "21:00", "days_off": []},
+  "services": [
+    {"id": "haircut_w", "title": "Женская стрижка", "category": "Волосы", "price": 2500, "duration": 60,
+     "description": "Мытьё, стрижка и укладка."},
+    {"id": "haircut_m", "title": "Мужская стрижка", "category": "Волосы", "price": 1500, "duration": 30,
+     "description": "Стрижка машинкой и ножницами, мытьё головы."},
+    {"id": "coloring", "title": "Окрашивание в один тон", "category": "Волосы", "price": 4500, "duration": 120,
+     "description": "Цена для средней длины, для длинных волос +1000 руб. Краски Estel и Matrix."},
+    {"id": "manicure", "title": "Маникюр без покрытия", "category": "Ногти", "price": 1200, "duration": 60,
+     "description": "Аппаратный или комбинированный маникюр."},
+    {"id": "manicure_gel", "title": "Маникюр + гель-лак", "category": "Ногти", "price": 2200, "duration": 90,
+     "description": "Снятие старого покрытия включено. Дизайн от 50 руб. за ноготь."},
+    {"id": "pedicure", "title": "Педикюр + гель-лак", "category": "Ногти", "price": 2800, "duration": 90,
+     "description": "Аппаратный педикюр с покрытием."},
+    {"id": "face_clean", "title": "Чистка лица", "category": "Лицо и брови", "price": 3500, "duration": 60,
+     "description": "Комбинированная чистка с маской и уходом."},
+    {"id": "brows", "title": "Коррекция и окрашивание бровей", "category": "Лицо и брови", "price": 1300, "duration": 30,
+     "description": "Коррекция формы и окрашивание хной или краской."}
+  ],
+  "masters": [
+    {"id": "anna", "name": "Анна", "role": "парикмахер-стилист, стаж 8 лет",
+     "services": ["haircut_w", "haircut_m", "coloring"]},
+    {"id": "olga", "name": "Ольга", "role": "мастер маникюра и педикюра",
+     "services": ["manicure", "manicure_gel", "pedicure"]},
+    {"id": "katya", "name": "Екатерина", "role": "мастер маникюра",
+     "services": ["manicure", "manicure_gel"]},
+    {"id": "irina", "name": "Ирина", "role": "косметолог-эстетист",
+     "services": ["face_clean", "brows"]}
+  ]
+}
