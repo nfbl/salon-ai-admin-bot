@@ -37,12 +37,12 @@ history: dict[int, deque] = defaultdict(lambda: deque(maxlen=10))
 BOOKING_DAYS = 7
 REMIND_BEFORE = timedelta(hours=3)
 
-BTN_PRICES = "💅 Услуги и цены"
-BTN_BOOK = "📅 Записаться"
-BTN_MASTERS = "👩‍🎨 Мастера"
-BTN_MY = "📋 Мои записи"
-BTN_CONTACTS = "📍 Контакты"
-BTN_ASK = "💬 Спросить администратора"
+BTN_PRICES = "Услуги и цены"
+BTN_BOOK = "Записаться"
+BTN_MASTERS = "Мастера"
+BTN_MY = "Мои записи"
+BTN_CONTACTS = "Контакты"
+BTN_ASK = "Спросить администратора"
 
 MAIN_KB = ReplyKeyboardMarkup(
     keyboard=[
@@ -54,7 +54,7 @@ MAIN_KB = ReplyKeyboardMarkup(
     input_field_placeholder="Задайте вопрос или выберите пункт меню",
 )
 PHONE_KB = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="📱 Отправить мой номер", request_contact=True)]],
+    keyboard=[[KeyboardButton(text="Отправить мой номер", request_contact=True)]],
     resize_keyboard=True, one_time_keyboard=True,
 )
 
@@ -112,7 +112,7 @@ def book_or_ask_kb() -> InlineKeyboardMarkup:
 
 def with_cancel(kb: InlineKeyboardBuilder, *sizes: int) -> InlineKeyboardMarkup:
     kb.adjust(*sizes)
-    kb.row(InlineKeyboardButton(text="✖️ Отмена", callback_data="abort"))
+    kb.row(InlineKeyboardButton(text="Отмена", callback_data="abort"))
     return kb.as_markup()
 
 
@@ -141,10 +141,10 @@ async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     name = html.escape(message.from_user.first_name or "")
     await message.answer(
-        f"Здравствуйте, {name}! 👋\n\n"
+        f"Здравствуйте, {name}!\n\n"
         f"Я виртуальный администратор салона «{salon.name}».\n"
         "Отвечу на вопросы об услугах, ценах и акциях, запишу к мастеру и напомню о визите.\n\n"
-        "Выберите пункт меню или просто напишите вопрос 🙂",
+        "Выберите пункт меню или просто напишите вопрос.",
         reply_markup=MAIN_KB,
     )
 
@@ -163,11 +163,11 @@ async def reply_to_question(message: Message) -> dict | bool:
 async def admin_reply(message: Message, bot: Bot, client_id: int):
     await bot.send_message(
         client_id,
-        f"💬 <b>Ответ администратора:</b>\n{html.escape(message.text)}",
+        f"<b>Ответ администратора:</b>\n{html.escape(message.text)}",
         reply_markup=book_button(),
     )
     db.mark_answered(message.reply_to_message.message_id, now())
-    await message.answer("✅ Ответ отправлен клиенту.")
+    await message.answer("Ответ отправлен клиенту.")
 
 
 @router.callback_query(F.data == "ask_admin")
@@ -179,7 +179,7 @@ async def ask_admin_start(cb: CallbackQuery, state: FSMContext):
         return
     await state.set_state(AskAdmin.question)
     kb = InlineKeyboardBuilder()
-    kb.button(text="✖️ Отмена", callback_data="ask_cancel")
+    kb.button(text="Отмена", callback_data="ask_cancel")
     await cb.message.answer(
         "Напишите ваш вопрос одним сообщением — передам администратору. Ответ придёт сюда же.",
         reply_markup=kb.as_markup(),
@@ -189,7 +189,7 @@ async def ask_admin_start(cb: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "ask_cancel")
 async def ask_admin_cancel(cb: CallbackQuery, state: FSMContext):
     await state.clear()
-    await cb.message.edit_text("Хорошо! Если появятся вопросы — пишите 🙂")
+    await cb.message.edit_text("Хорошо. Если появятся вопросы — пишите.")
     await cb.answer()
 
 
@@ -202,16 +202,16 @@ async def ask_admin_send(message: Message, state: FSMContext, bot: Bot):
     try:
         sent = await bot.send_message(
             settings.admin_chat_id,
-            f"💬 <b>Вопрос от клиента</b>\n{html.escape(user.full_name)}{username}\n\n"
+            f"<b>Вопрос от клиента</b>\n{html.escape(user.full_name)}{username}\n\n"
             f"{html.escape(question)}\n\n"
             "<i>Ответьте на это сообщение (Reply) — ответ уйдёт клиенту.</i>",
         )
     except Exception:
         log.exception("Не удалось переслать вопрос администратору")
-        await message.answer(f"Не получилось передать вопрос 🙏 Позвоните нам: {salon.phone}")
+        await message.answer(f"Не получилось передать вопрос. Позвоните нам: {salon.phone}")
         return
     db.add_question(user.id, sent.message_id, question, now())
-    await message.answer("✅ Передал вопрос администратору. Ответ придёт в этот чат.",
+    await message.answer("Передал вопрос администратору. Ответ придёт в этот чат.",
                          reply_markup=MAIN_KB)
 
 
@@ -227,7 +227,7 @@ async def show_prices(message: Message, state: FSMContext):
 async def show_contacts(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
-        f"<b>{salon.name}</b>\n📍 {salon.address}\n📞 {salon.phone}\n🕙 {salon.hours_text}",
+        f"<b>{salon.name}</b>\n{salon.address}\nТелефон: {salon.phone}\nЧасы работы: {salon.hours_text}",
         reply_markup=book_or_ask_kb(),
     )
 
@@ -257,7 +257,7 @@ async def user_cancel(cb: CallbackQuery, bot: Bot):
         return
     await cb.message.edit_text(f"Запись отменена: {booking_text(booking)}")
     await cb.answer()
-    await notify_admin(bot, f"❌ Клиент отменил запись\n{booking_text(booking)}\n"
+    await notify_admin(bot, f"Клиент отменил запись\n{booking_text(booking)}\n"
                             f"{html.escape(booking.client_name)}, {html.escape(booking.phone)}")
 
 
@@ -282,7 +282,7 @@ async def book_start_cb(cb: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "abort")
 async def abort(cb: CallbackQuery, state: FSMContext):
     await state.clear()
-    await cb.message.edit_text("Запись отменена. Если появятся вопросы — пишите, я на связи 🙂")
+    await cb.message.edit_text("Запись отменена. Если появятся вопросы — пишите.")
     await cb.answer()
 
 
@@ -331,7 +331,7 @@ def services_kb(master_id: str | None = None) -> InlineKeyboardMarkup:
         if master_id is None or s.id in salon.masters[master_id].services:
             kb.button(text=f"{s.title} · {s.price} ₽", callback_data=f"svc:{s.id}")
     if master_id is None:
-        kb.button(text="👩‍🎨 Сначала выбрать мастера", callback_data="masters")
+        kb.button(text="Сначала выбрать мастера", callback_data="masters")
     return with_cancel(kb, 1)
 
 
@@ -376,7 +376,7 @@ async def ask_day(message: Message, state: FSMContext, prefix: str = ""):
             kb.button(text=label, callback_data=f"day:{d.isoformat()}")
         elif grid:  # все окна дня заняты реальными записями
             has_full = True
-            kb.button(text=f"🔴 {label}", callback_data="full")
+            kb.button(text=f"✕ {label}", callback_data="full")
     await state.set_state(BookingForm.day)
     if not has_free:
         await state.clear()
@@ -385,7 +385,7 @@ async def ask_day(message: Message, state: FSMContext, prefix: str = ""):
             f"Позвоните нам: {salon.phone} — постараемся найти время."
         )
         return
-    legend = "\n🔴 — всё занято" if has_full else ""
+    legend = "\n✕ — всё занято" if has_full else ""
     await message.edit_text(
         f"{prefix}<b>{service.title}</b> · {service.price} ₽ · мастер {master.name}\n\n"
         f"Выберите день:{legend}",
@@ -407,8 +407,8 @@ async def pick_day(cb: CallbackQuery, state: FSMContext):
         if free:
             kb.button(text=f"{t:%H:%M}", callback_data=f"time:{t.isoformat()}")
         else:
-            kb.button(text=f"🔴 {t:%H:%M}", callback_data="busy")
-    legend = "\n🔴 — время занято" if not all(free for _, free in grid) else ""
+            kb.button(text=f"✕ {t:%H:%M}", callback_data="busy")
+    legend = "\n✕ — время занято" if not all(free for _, free in grid) else ""
     await state.set_state(BookingForm.time)
     await cb.message.edit_text(f"{fmt_day(day)}. Выберите время:{legend}",
                                reply_markup=with_cancel(kb, 4))
@@ -417,12 +417,12 @@ async def pick_day(cb: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "busy")
 async def busy_slot(cb: CallbackQuery):
-    await cb.answer("Это время уже занято — выберите другое 🙏")
+    await cb.answer("Это время уже занято — выберите другое.")
 
 
 @router.callback_query(F.data == "full")
 async def full_day(cb: CallbackQuery):
-    await cb.answer("На этот день всё занято — выберите другой 🙏")
+    await cb.answer("На этот день всё занято — выберите другой.")
 
 
 @router.callback_query(BookingForm.time, F.data.startswith("time:"))
@@ -430,7 +430,7 @@ async def pick_time(cb: CallbackQuery, state: FSMContext):
     starts_at = datetime.fromisoformat(cb.data.split(":", 1)[1])
     await state.update_data(starts_at=starts_at.isoformat())
     await state.set_state(BookingForm.name)
-    await cb.message.edit_text(f"Отлично, {fmt_dt(starts_at)} 👍")
+    await cb.message.edit_text(f"Отлично, {fmt_dt(starts_at)}.")
     await cb.message.answer("Как к вам обращаться?")
     await cb.answer()
 
@@ -461,8 +461,8 @@ async def enter_phone(message: Message, state: FSMContext):
     service = salon.services[data["service_id"]]
     master = salon.masters[data["master_id"]]
     kb = InlineKeyboardBuilder()
-    kb.button(text="✅ Подтвердить", callback_data="confirm")
-    kb.button(text="✖️ Отмена", callback_data="abort")
+    kb.button(text="Подтвердить", callback_data="confirm")
+    kb.button(text="Отмена", callback_data="abort")
     await message.answer("Почти готово!", reply_markup=MAIN_KB)
     await message.answer(
         "<b>Проверьте запись:</b>\n"
@@ -482,7 +482,7 @@ async def confirm(cb: CallbackQuery, state: FSMContext, bot: Bot):
     starts_at = datetime.fromisoformat(data["starts_at"])
     # Время могли занять, пока клиент вводил данные
     if starts_at not in slots_for(data["master_id"], service.id, starts_at.date()):
-        await ask_day(cb.message, state, prefix="😔 Это время только что заняли, выберите другое.\n\n")
+        await ask_day(cb.message, state, prefix="Это время только что заняли, выберите другое.\n\n")
         await cb.answer()
         return
     booking = db.add(
@@ -494,13 +494,13 @@ async def confirm(cb: CallbackQuery, state: FSMContext, bot: Bot):
     )
     await state.clear()
     await cb.message.edit_text(
-        f"✅ Вы записаны!\n\n{booking_text(booking)}\n📍 {salon.address}\n\n"
+        f"Вы записаны.\n\n{booking_text(booking)}\nАдрес: {salon.address}\n\n"
         f"Напомню о визите за {REMIND_BEFORE.seconds // 3600} часа. "
         "Отменить или посмотреть запись можно в разделе «Мои записи»."
     )
     await cb.answer("Готово!")
     username = f" (@{booking.username})" if booking.username else ""
-    await notify_admin(bot, f"🆕 Новая запись\n{booking_text(booking)}\n"
+    await notify_admin(bot, f"Новая запись\n{booking_text(booking)}\n"
                             f"{html.escape(booking.client_name)}{username}, {html.escape(booking.phone)}")
 
 
@@ -563,7 +563,7 @@ async def reminders_loop(bot: Bot) -> None:
             for b in db.due_reminders(now(), now() + REMIND_BEFORE):
                 await bot.send_message(
                     b.user_id,
-                    f"⏰ Напоминаем о записи: {booking_text(b)}\n📍 {salon.address}\n"
+                    f"Напоминаем о записи: {booking_text(b)}\nАдрес: {salon.address}\n"
                     "Если планы изменились — отмените запись в разделе «Мои записи».",
                 )
                 db.mark_reminded(b.id)
