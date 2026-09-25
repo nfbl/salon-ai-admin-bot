@@ -28,9 +28,18 @@ python3 -m venv "$DIR/.venv"
 chown -R bot:bot "$DIR"
 chmod 600 "$DIR/.env" 2>/dev/null || echo "ВНИМАНИЕ: нет $DIR/.env — бот не запустится"
 
-cp "$DIR/deploy/salon-bot.service" /etc/systemd/system/salon-bot.service
+SERVICES=()
+grep -q '^BOT_TOKEN=.' "$DIR/.env" 2>/dev/null && SERVICES+=(salon-bot)
+grep -q '^MAX_BOT_TOKEN=.' "$DIR/.env" 2>/dev/null && SERVICES+=(salon-max-bot)
+[ ${#SERVICES[@]} -gt 0 ] || { echo "В $DIR/.env нет ни BOT_TOKEN, ни MAX_BOT_TOKEN"; exit 1; }
+
+for s in "${SERVICES[@]}"; do
+    cp "$DIR/deploy/$s.service" "/etc/systemd/system/$s.service"
+done
 systemctl daemon-reload
-systemctl enable -q salon-bot
-systemctl restart salon-bot
+for s in "${SERVICES[@]}"; do
+    systemctl enable -q "$s"
+    systemctl restart "$s"
+done
 sleep 3
-systemctl --no-pager --lines=5 status salon-bot
+systemctl --no-pager --lines=5 status "${SERVICES[@]}"

@@ -1,0 +1,16 @@
+[Unit]
+Description=Salon AI admin bot for MAX messenger
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bot
+WorkingDirectory=/opt/salon-bot
+ExecStart=/opt/salon-bot/.venv/bin/python max_bot.py
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
