@@ -19,8 +19,10 @@ from aiogram.types import (
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+import fmt
 from config import load_settings
 from db import Booking, Bookings
+from fmt import WEEKDAYS, fmt_day, fmt_dt
 from llm import Assistant
 from salon import Salon
 from slots import day_grid, free_slots
@@ -34,6 +36,7 @@ assistant = Assistant(settings, salon)
 router = Router()
 history: dict[int, deque] = defaultdict(lambda: deque(maxlen=10))
 
+CHANNEL = "telegram"
 BOOKING_DAYS = 7
 REMIND_BEFORE = timedelta(hours=3)
 
@@ -68,10 +71,6 @@ def menu(button: str):
         return text == button or text.lower() == label
     return match
 
-WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
-MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля",
-          "августа", "сентября", "октября", "ноября", "декабря"]
-
 
 class BookingForm(StatesGroup):
     service = State()
@@ -91,18 +90,8 @@ def now() -> datetime:
     return datetime.now(settings.tz)
 
 
-def fmt_day(d: date) -> str:
-    return f"{d.day} {MONTHS[d.month - 1]}, {WEEKDAYS[d.weekday()]}"
-
-
-def fmt_dt(dt: datetime) -> str:
-    return f"{fmt_day(dt.date())} в {dt:%H:%M}"
-
-
 def booking_text(b: Booking) -> str:
-    service = salon.services[b.service_id]
-    master = salon.masters[b.master_id]
-    return f"{service.title} — {master.name}, {fmt_dt(b.starts_at)}"
+    return fmt.booking_text(salon, b)
 
 
 def book_button() -> InlineKeyboardMarkup:
@@ -165,7 +154,7 @@ async def reply_to_question(message: Message) -> dict | bool:
     """Фильтр: администратор ответил (Reply) на пересланный вопрос клиента."""
     if message.chat.id != settings.admin_chat_id or not message.reply_to_message:
         return False
-    client_id = db.question_user(message.reply_to_message.message_id)
+    client_id = db.question_user(message.reply_to_message.message_id, channel=CHANNEL)
     return {"client_id": client_id} if client_id else False
 
 
@@ -176,7 +165,7 @@ async def admin_reply(message: Message, bot: Bot, client_id: int):
         f"💬 <b>Ответ администратора:</b>\n{html.escape(message.text)}",
         reply_markup=book_button(),
     )
-    db.mark_answered(message.reply_to_message.message_id, now())
+    db.mark_answered(message.reply_to_message.message_id, now(), channel=CHANNEL)
     await message.answer("✅ Ответ отправлен клиенту.")
 
 
@@ -220,7 +209,7 @@ async def ask_admin_send(message: Message, state: FSMContext, bot: Bot):
         log.exception("Не удалось переслать вопрос администратору")
         await message.answer(f"Не получилось передать вопрос 🙏 Позвоните нам: {salon.phone}")
         return
-    db.add_question(user.id, sent.message_id, question, now())
+    db.add_question(user.id, sent.message_id, question, now(), channel=CHANNEL)
     await message.answer("✅ Передал вопрос администратору. Ответ придёт в этот чат.",
                          reply_markup=MAIN_KB)
 
@@ -246,7 +235,7 @@ async def show_contacts(message: Message, state: FSMContext):
 @router.message(Command("my"))
 async def my_bookings(message: Message, state: FSMContext):
     await state.clear()
-    items = db.upcoming(now(), user_id=message.from_user.id)
+    items = db.upcoming(now(), user_id=message.from_user.id, channel=CHANNEL)
     if not items:
         await message.answer("У вас пока нет предстоящих записей.", reply_markup=book_button())
         return
@@ -261,7 +250,7 @@ async def my_bookings(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("ucancel:"))
 async def user_cancel(cb: CallbackQuery, bot: Bot):
-    booking = db.cancel(int(cb.data.split(":")[1]), cb.from_user.id)
+    booking = db.cancel(int(cb.data.split(":")[1]), cb.from_user.id, channel=CHANNEL)
     if not booking:
         await cb.answer("Запись уже отменена", show_alert=True)
         return
@@ -500,7 +489,7 @@ async def confirm(cb: CallbackQuery, state: FSMContext, bot: Bot):
         client_name=data["client_name"], phone=data["phone"],
         service_id=service.id, master_id=data["master_id"],
         starts_at=starts_at, ends_at=starts_at + timedelta(minutes=service.duration),
-        now=now(),
+        now=now(), channel=CHANNEL,
     )
     await state.clear()
     await cb.message.edit_text(
@@ -538,7 +527,8 @@ async def cmd_bookings(message: Message):
             lines.append(f"\n<b>{fmt_day(current)}</b>")
         lines.append(f"{b.starts_at:%H:%M} {salon.services[b.service_id].title} — "
                      f"{salon.masters[b.master_id].name}; "
-                     f"{html.escape(b.client_name)}, {html.escape(b.phone)}")
+                     f"{html.escape(b.client_name)}, {html.escape(b.phone)}"
+                     + (" · MAX" if b.channel == "max" else ""))
     await message.answer("\n".join(lines).strip())
 
 
@@ -570,7 +560,7 @@ async def ask_ai(message: Message, bot: Bot):
 async def reminders_loop(bot: Bot) -> None:
     while True:
         try:
-            for b in db.due_reminders(now(), now() + REMIND_BEFORE):
+            for b in db.due_reminders(now(), now() + REMIND_BEFORE, channel=CHANNEL):
                 await bot.send_message(
                     b.user_id,
                     f"⏰ Напоминаем о записи: {booking_text(b)}\n📍 {salon.address}\n"
@@ -584,6 +574,8 @@ async def reminders_loop(bot: Bot) -> None:
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    if not settings.bot_token:
+        raise SystemExit("Не задан BOT_TOKEN в .env — см. README.md")
     bot = Bot(settings.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
     dp.include_router(router)
