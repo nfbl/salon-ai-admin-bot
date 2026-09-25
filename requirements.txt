@@ -1,4 +1,6 @@
 aiogram>=3.13
+aiohttp>=3.9
+certifi>=2024.2
 python-dotenv>=1.0
 tzdata>=2024.1
 # ИИ-провайдеры — ставьте только нужный
